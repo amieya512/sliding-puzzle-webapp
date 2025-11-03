@@ -1,6 +1,7 @@
 // src/Puzzle.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from 'react-router-dom';
+import Timer from "./components/Timer"
 import Tile from "./components/Tile";
 import {
   isSolved as checkSolved,
@@ -63,7 +64,9 @@ export default function Puzzle({ size = 3, onMove, onSolved }) {
 
   return (
     <div className="flex flex-col gap-3 items-center">
+      <Timer />
       <div className="flex items-center gap-2">
+
         <button
           onClick={shuffle}
           className="px-3 py-1 rounded bg-blue-600 text-white"

@@ -1,9 +1,9 @@
 // src/App.jsx
 
-import Timer from "./components/Timer";
 import Menu from "./Menu";
 import Puzzle from "./Puzzle";
 import Dashboard from "./Dashboard";
+import Login from "./Login";
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 export default function App() {
@@ -18,27 +18,8 @@ export default function App() {
        <Route path="/Menu" element={<Menu />} />
        <Route path="/Puzzle" element={<Puzzle />} />
        <Route path="/Dashboard" element={<Dashboard />} />
+       <Route path="/Login" element={<Login />} />
       </Routes>
-
-      {/* Puzzle Grid Section
-      <section className="text-center">
-        <h2 className="text-2xl font-semibold mb-2">Puzzle Grid</h2>
-        <Puzzle size={3} />
-      </section>
-
-      Timer Section
-      <section className="text-center">
-        <h2 className="text-xl font-semibold mb-2">Timer</h2>
-        <Timer />
-      </section> */}
-
-      {/* Menu Section */}
-
-      {/* Dash Section
-      <section className="text-center">
-        <h2 className="text-xl font-semibold mb-2">Dashboard</h2>
-        <Dashboard />
-      </section> */}
       </BrowserRouter>
     </div>
     
