@@ -1,5 +1,6 @@
 // src/Puzzle.jsx
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from 'react-router-dom';
 import Tile from "./components/Tile";
 import {
   isSolved as checkSolved,
@@ -8,6 +9,8 @@ import {
 
 
 export default function Puzzle({ size = 3, onMove, onSolved }) {
+
+  const navigate = useNavigate();
 
   const [tiles, setTiles] = useState(() => newSolvableBoard(size));
   const [moves, setMoves] = useState(0);
@@ -89,6 +92,11 @@ export default function Puzzle({ size = 3, onMove, onSolved }) {
           <Tile key={i} value={v} index={i} onClick={moveTile} />
         ))}
       </div>
+
+      <button onClick = {() => navigate("/Dashboard") }
+            className = "bg-green-500 hover:bg-green-700 text-white font-bold px-3 py-3 rounded">
+            To Dashboard
+      </button>
     </div>
   );
 }
