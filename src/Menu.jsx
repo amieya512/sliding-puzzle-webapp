@@ -35,7 +35,7 @@ function Menu() {
   return (
     <div className="text-center">
       <div className= "flex flex-col space-y-7"></div>
-      <h2 className="text-xl font-semibold">Slide Puzzle Game</h2>
+      <h2 className="text-xl font-semibold">Main Menu</h2>
     <div className= "flex flex-col space-y-7"></div>
     <div className= "flex gap-3">
     <button onClick = {() => navigate("/Login") }
@@ -53,6 +53,7 @@ function Menu() {
         Play as Guest
     </button>
     </div>
+      <h1 className= "font-semibold">Note: Guest Progress will not be saved</h1>
     </div>
   );
 }
