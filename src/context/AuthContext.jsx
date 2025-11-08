@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
     const cred = await signInWithPopup(auth, googleProvider);
     const user = cred.user;
 
-    // Create profile node if it doesn’t exist yet
+    // Create Realtime DB node only if missing
     const userRef = child(ref(db), "users/" + user.uid);
     const snap = await get(userRef);
     if (!snap.exists()) {
@@ -51,7 +51,6 @@ export function AuthProvider({ children }) {
         createdAt: Date.now(),
       });
     }
-
     return user;
   };
 

@@ -1,49 +1,45 @@
-// src/Login.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-import { db } from "./firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
 
 function Login() {
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle, resetPassword } = useAuth();
   const navigate = useNavigate();
 
-  const [identifier, setIdentifier] = useState(""); // username or email
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [resetSent, setResetSent] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-
     try {
-      let loginEmail = identifier;
-
-      // ✅ If input doesn't contain '@', treat it as username and look up email
-      if (!identifier.includes("@")) {
-        const q = query(
-          collection(db, "users"),
-          where("username", "==", identifier)
-        );
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          loginEmail = snapshot.docs[0].data().email;
-        } else {
-          throw new Error("Username not found.");
-        }
-      }
-
-      // ✅ Try to sign in with resolved email
-      await signIn(loginEmail, password);
+      await signIn(email.trim(), password);
       navigate("/Dashboard");
+    } catch (err) {
+      let msg = err.message || "Error signing in.";
+      if (msg.includes("auth/invalid-credential"))
+        msg = "Invalid email or password.";
+      setError(msg);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError("Please enter your email to reset your password.");
+      return;
+    }
+    try {
+      await resetPassword(email.trim());
+      setResetSent(true);
+      setError("");
     } catch (err) {
       setError(err.message);
     }
   };
 
   const handleGoogle = async () => {
-    setError("");
     try {
       await signInWithGoogle();
       navigate("/Dashboard");
@@ -54,17 +50,14 @@ function Login() {
 
   return (
     <div className="text-center flex flex-col items-center min-h-screen justify-center">
-      <h2 className="text-xl mb-4">Login to Account</h2>
+      <h2 className="text-xl mb-4">Sign In</h2>
 
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-3 w-64 text-left"
-      >
+      <form onSubmit={handleLogin} className="flex flex-col gap-3 w-64 text-left">
         <input
-          type="text"
-          placeholder="Email or Username"
-          value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           className="border border-gray-300 rounded px-3 py-2"
           required
         />
@@ -78,12 +71,17 @@ function Login() {
         />
 
         {error && <p className="text-red-500 text-sm">{error}</p>}
+        {resetSent && (
+          <p className="text-green-600 text-sm">
+            Password reset email sent! Check your inbox.
+          </p>
+        )}
 
         <button
           type="submit"
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 rounded"
         >
-          Log In
+          Sign In
         </button>
 
         <button
@@ -96,10 +94,18 @@ function Login() {
 
         <button
           type="button"
-          onClick={() => navigate("/Account")}
-          className="text-blue-500 underline mt-2"
+          onClick={handleForgotPassword}
+          className="text-blue-600 underline text-sm mt-1"
         >
-          Need an account? Sign up
+          Forgot Password?
+        </button>
+
+        <button
+          type="button"
+          onClick={() => navigate("/Account")}
+          className="text-green-600 underline mt-2"
+        >
+          Create an Account
         </button>
         <button
           type="button"
