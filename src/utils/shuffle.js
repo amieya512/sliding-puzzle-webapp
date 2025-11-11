@@ -1,4 +1,3 @@
-// src/utils/shuffle.js
 function makeGoalBoard(size) {
   const tiles = [];
   for (let i = 1; i < size * size; i++) tiles.push(i);
