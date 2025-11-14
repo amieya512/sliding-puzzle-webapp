@@ -1,58 +1,67 @@
-// src/utils/shuffle.js
+function makeGoalBoard(size) {
+  const tiles = [];
+  for (let i = 1; i < size * size; i++) tiles.push(i);
+  tiles.push(0);
+  return tiles;
+}
 
-export function shuffleArray(arr) {
-    const a = [...arr];
-    for (let i = a.length - 1; i > 0; i--) {
+function countInversions(arr) {
+  const nums = arr.filter((x) => x !== 0);
+  let inv = 0;
+  for (let i = 0; i < nums.length; i++) {
+    for (let j = i + 1; j < nums.length; j++) {
+      if (nums[i] > nums[j]) inv++;
+    }
+  }
+  return inv;
+}
+
+function isSolvableInternal(tiles, size) {
+  const inv = countInversions(tiles);
+
+  if (size % 2 === 1) {
+    return inv % 2 === 0;
+  }
+
+  const blankIndex = tiles.indexOf(0);
+  const blankRowFromBottom = size - Math.floor(blankIndex / size);
+
+  if (blankRowFromBottom % 2 === 0) {
+    return inv % 2 === 1;
+  }
+  return inv % 2 === 0;
+}
+
+export function boardToLayoutId(tiles) {
+  return tiles.join("-");
+}
+
+export function isSolved(tiles) {
+  const size = Math.sqrt(tiles.length);
+  const goal = makeGoalBoard(size);
+  return tiles.every((v, i) => v === goal[i]);
+}
+
+export function newSolvableBoard(size, playedLayoutsForSize = new Set()) {
+  const base = makeGoalBoard(size);
+  let tiles = [...base];
+
+  let safety = 0;
+  while (true) {
+    for (let i = tiles.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
+      [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
     }
-    return a;
-  }
-  
-  export function countInversions(tiles) {
-    const seq = tiles.filter((v) => v !== 0);
-    let inv = 0;
-    for (let i = 0; i < seq.length; i++) {
-      for (let j = i + 1; j < seq.length; j++) {
-        if (seq[i] > seq[j]) inv++;
-      }
+
+    const layoutId = boardToLayoutId(tiles);
+
+    if (isSolvableInternal(tiles, size) && !playedLayoutsForSize.has(layoutId)) {
+      return tiles;
     }
-    return inv;
-  }
-  
-  export function blankRowFromBottom(tiles, size) {
-    const idx = tiles.indexOf(0);
-    const rowFromTop = Math.floor(idx / size) + 1;
-    return size - rowFromTop + 1;
-  }
-  
-  export function isSolvable(tiles, size) {
-    const inv = countInversions(tiles);
-    if (size % 2 === 1) {
-      return inv % 2 === 0;
+
+    safety++;
+    if (safety > 10000) {
+      return base;
     }
-    const blankFromBottom = blankRowFromBottom(tiles, size);
-    const invEven = inv % 2 === 0;
-    const blankEven = blankFromBottom % 2 === 0;
-    return (blankEven && !invEven) || (!blankEven && invEven);
   }
-  
-  export function isSolved(tiles) {
-    const n = tiles.length;
-    for (let i = 0; i < n - 1; i++) {
-      if (tiles[i] !== i + 1) return false;
-    }
-    return tiles[n - 1] === 0;
-  }
-  
-  export function newSolvableBoard(size) {
-    const goal = Array.from({ length: size * size }, (_, i) =>
-      i === size * size - 1 ? 0 : i + 1
-    );
-    let tiles;
-    do {
-      tiles = shuffleArray(goal);
-    } while (!isSolvable(tiles, size) || isSolved(tiles));
-    return tiles;
-  }
-  
+}

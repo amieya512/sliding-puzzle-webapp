@@ -1,19 +1,23 @@
 import { useState, useEffect } from "react";
 
-export default function Timer({ autoStart = false }) {
+export default function Timer({ autoStart = false, onTick }) {
   const [seconds, setSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(autoStart);
 
-  // Start counting every second while running
   useEffect(() => {
     let interval;
     if (isRunning) {
-      interval = setInterval(() => setSeconds((s) => s + 1), 1000);
+      interval = setInterval(() => {
+        setSeconds((s) => s + 1);
+      }, 1000);
     }
     return () => clearInterval(interval);
   }, [isRunning]);
 
-  // Format time as mm:ss
+  useEffect(() => {
+    if (onTick) onTick(seconds);
+  }, [seconds, onTick]);
+
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;
