@@ -1,60 +1,43 @@
-import { useState, useEffect } from "react";
+// src/components/Timer.jsx
+import { useEffect, useState } from "react";
 
-export default function Timer({ autoStart = false, onTick }) {
+export default function Timer({
+  autoStart = true,
+  running = true,          // <- parent controls start/stop
+  resetTrigger,            // <- toggle to reset to 00:00
+  onTick,                  // <- send seconds up to parent
+}) {
   const [seconds, setSeconds] = useState(0);
-  const [isRunning, setIsRunning] = useState(autoStart);
 
+  // reset to 0 whenever resetTrigger changes
   useEffect(() => {
-    let interval;
-    if (isRunning) {
-      interval = setInterval(() => {
-        setSeconds((s) => s + 1);
-      }, 1000);
+    setSeconds(0);
+  }, [resetTrigger]);
+
+  // tick while running
+  useEffect(() => {
+    let id;
+    const shouldRun = running || (autoStart && running === undefined);
+    if (shouldRun) {
+      id = setInterval(() => setSeconds((s) => s + 1), 1000);
     }
-    return () => clearInterval(interval);
-  }, [isRunning]);
+    return () => clearInterval(id);
+  }, [running, autoStart]);
 
   useEffect(() => {
     if (onTick) onTick(seconds);
   }, [seconds, onTick]);
 
-  const formatTime = (s) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m.toString().padStart(2, "0")}:${sec
-      .toString()
-      .padStart(2, "0")}`;
+  const fmt = (s) => {
+    const m = Math.floor(s / 60).toString().padStart(2, "0");
+    const ss = (s % 60).toString().padStart(2, "0");
+    return `${m}:${ss}`;
   };
 
   return (
-    <div className="flex flex-col items-center p-4 rounded-lg shadow-md bg-gray-100 w-64">
-      <h3 className="font-semibold text-lg mb-2">Timer</h3>
-      <div className="text-3xl font-mono mb-4 text-blue-700">
-        {formatTime(seconds)}
-      </div>
-      <div className="flex gap-3">
-        <button
-          onClick={() => setIsRunning(true)}
-          className="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded"
-        >
-          Start
-        </button>
-        <button
-          onClick={() => setIsRunning(false)}
-          className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded"
-        >
-          Stop
-        </button>
-        <button
-          onClick={() => {
-            setIsRunning(false);
-            setSeconds(0);
-          }}
-          className="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded"
-        >
-          Reset
-        </button>
-      </div>
+    <div className="flex flex-col items-center mb-4">
+      <h3 className="font-semibold text-lg mb-2">Time</h3>
+      <div className="text-3xl font-mono text-green-400">{fmt(seconds)}</div>
     </div>
   );
 }

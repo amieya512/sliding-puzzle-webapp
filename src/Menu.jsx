@@ -1,75 +1,70 @@
 // src/Menu.jsx
-import React, { useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 
 function Menu() {
   const navigate = useNavigate();
-  const { user, guest, loading, startGuest, signOutUser } = useAuth();
-
-  // 🔹 Once auth finishes loading:
-  //    - If logged in, go straight to Dashboard
-  //    - If guest, clear guest state
-  useEffect(() => {
-    if (loading) return;
-
-    if (user) {
-      navigate("/Dashboard");
-      return;
-    }
-
-    if (guest) {
-      signOutUser(); // reset ghost guest state
-    }
-  }, [loading, user, guest, navigate, signOutUser]);
+  const { startGuest } = useAuth();
 
   const handleGuestPlay = () => {
-    startGuest();
-    navigate("/Dashboard");
+    startGuest(); // ✅ sets guest = true in AuthContext
+    navigate("/dashboard");
   };
 
-  // 🔹 Show loading placeholder while Firebase initializes
-  if (loading) {
-    return (
-      <div className="text-center mt-20">
-        <h2 className="text-xl font-semibold">Loading...</h2>
-      </div>
-    );
-  }
-
   return (
-    <div className="text-center">
-      <h2 className="text-xl font-semibold mb-4">Main Menu</h2>
+    <div className="min-h-screen w-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white flex flex-col items-center justify-center relative overflow-hidden">
+      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,white,transparent_60%)] pointer-events-none"></div>
 
-      {/* Show sign-in options only when not logged in or guest */}
-      {!user && !guest && (
-        <div className="flex gap-3 justify-center mt-6">
-          <button
-            onClick={() => navigate("/Login")}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold px-3 py-3 rounded"
-          >
-            Log-In
-          </button>
+      {/* Puzzle-grid logo */}
+      <svg
+        width="140"
+        height="140"
+        viewBox="0 0 100 100"
+        xmlns="http://www.w3.org/2000/svg"
+        className="mb-8 drop-shadow-lg"
+      >
+        <rect x="5" y="5" width="25" height="25" fill="#22C55E" rx="4" />
+        <rect x="37.5" y="5" width="25" height="25" fill="#16A34A" rx="4" />
+        <rect x="70" y="5" width="25" height="25" fill="#15803D" rx="4" />
+        <rect x="5" y="37.5" width="25" height="25" fill="#15803D" rx="4" />
+        <rect x="37.5" y="37.5" width="25" height="25" fill="#22C55E" rx="4" />
+        <rect x="70" y="37.5" width="25" height="25" fill="#16A34A" rx="4" />
+        <rect x="5" y="70" width="25" height="25" fill="#16A34A" rx="4" />
+        <rect x="37.5" y="70" width="25" height="25" fill="#15803D" rx="4" />
+        <rect x="70" y="70" width="25" height="25" fill="#22C55E" rx="4" />
+      </svg>
 
-          <button
-            onClick={() => navigate("/Account")}
-            className="bg-green-500 hover:bg-green-700 text-white font-bold px-3 py-3 rounded"
-          >
-            Create Account
-          </button>
-
-          <button
-            onClick={handleGuestPlay}
-            className="bg-purple-500 hover:bg-purple-700 text-white font-bold px-3 py-3 rounded"
-          >
-            Play as Guest
-          </button>
-        </div>
-      )}
-
-      <h1 className="font-semibold mt-4">
-        Note: Guest progress will not be saved
+      <h1 className="text-6xl font-extrabold mb-10 tracking-wide text-green-400 drop-shadow-lg">
+        TileRush
       </h1>
+
+      <div className="flex flex-row gap-8">
+        <button
+          onClick={handleGuestPlay}
+          className="bg-blue-500 hover:bg-blue-600 px-8 py-4 rounded-lg font-semibold border-b-4 border-blue-700 active:translate-y-0.5 transition-all shadow-md"
+        >
+          Play as Guest
+        </button>
+
+        <button
+          onClick={() => navigate("/login")}
+          className="bg-green-500 hover:bg-green-600 px-8 py-4 rounded-lg font-semibold border-b-4 border-green-700 active:translate-y-0.5 transition-all shadow-md"
+        >
+          Sign In
+        </button>
+
+        <button
+          onClick={() => navigate("/account")}
+          className="bg-purple-500 hover:bg-purple-600 px-8 py-4 rounded-lg font-semibold border-b-4 border-purple-700 active:translate-y-0.5 transition-all shadow-md"
+        >
+          Create Account
+        </button>
+      </div>
+
+      <p className="absolute bottom-6 text-gray-400 text-sm italic">
+        Guest progress will not be saved.
+      </p>
     </div>
   );
 }

@@ -1,165 +1,47 @@
 // src/Account.jsx
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-import { db, auth } from "./firebase";
-import {
-  ref,
-  get,
-  set,
-  query,
-  orderByChild,
-  equalTo,
-} from "firebase/database";
-import { deleteUser } from "firebase/auth";
-import { Filter } from "bad-words";
+import { ref, set } from "firebase/database";
+import { db } from "./firebase";
+import { isBadUsername } from "./utils/profanity";
 
-const filter = new Filter();
-
-function Account() {
-  const { user, signUp, signInWithGoogle } = useAuth();
-  const navigate = useNavigate();
-
-  const [loading, setLoading] = useState(true);
-  const [isGoogleUserWithoutUsername, setIsGoogleUserWithoutUsername] = useState(false);
+export default function Account() {
+  const { signUp, signInWithGoogle } = useAuth();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const navigate = useNavigate();
 
-  // ✅ Only prompt Google users for username setup
-  useEffect(() => {
-    const checkProfile = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const userRef = ref(db, "users/" + user.uid);
-        const snap = await get(userRef);
-
-        if (snap.exists() && snap.val()?.username) {
-          navigate("/Dashboard");
-        } else if (
-          user?.providerData?.some((p) => p.providerId === "google.com") &&
-          (!snap.exists() || !snap.val()?.username)
-        ) {
-          setIsGoogleUserWithoutUsername(true);
-        } else {
-          setLoading(false);
-        }
-      } catch (err) {
-        console.warn("Database check error:", err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    checkProfile();
-  }, [user, navigate]);
-
-  // ✅ Local validation
-  const validateLocally = () => {
-    const uname = username.trim();
-
-    if (uname.length < 3 || uname.length > 16)
-      throw new Error("Username must be 3–16 characters long.");
-    if (/\s/.test(uname) || /[^a-zA-Z0-9_]/.test(uname))
-      throw new Error("Username can only contain letters, numbers, and underscores.");
-    if (filter.isProfane(uname))
-      throw new Error("Please choose an appropriate username.");
-
-    if (!isGoogleUserWithoutUsername) {
-      if (password.length < 8)
-        throw new Error("Password must be at least 8 characters long.");
-      if (!/[A-Z]/.test(password) || !/[0-9]/.test(password))
-        throw new Error("Password must contain at least one number and one capital letter.");
-      if (password !== confirmPassword)
-        throw new Error("Passwords do not match.");
-    }
-  };
-
-  // ✅ Main submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess(false);
 
     try {
-      validateLocally();
-
-      if (isGoogleUserWithoutUsername && user) {
-        await handleUsernameSave(user.uid, user.email);
-        return;
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        throw new Error("Username may only contain letters, numbers, and underscores.");
+      }
+      if (username.length < 3 || username.length > 15) {
+        throw new Error("Username must be 3–15 characters long.");
+      }
+      if (isBadUsername(username)) {
+        throw new Error("Please choose a cleaner username.");
       }
 
-      const cred = await signUp(email.trim(), password);
-      const newUser = cred.user;
-      if (!newUser?.uid)
-        throw new Error("Account creation failed. Please try again.");
+      const userCredential = await signUp(email, password);
+      const user = userCredential.user;
 
-      const uname = username.trim();
-
-      // Check for duplicate username AFTER signup (auth required)
-      const usernameQuery = query(
-        ref(db, "users"),
-        orderByChild("username"),
-        equalTo(uname)
-      );
-      const result = await get(usernameQuery);
-
-      if (result.exists()) {
-        await deleteUser(auth.currentUser);
-        throw new Error("Username is already taken. Please choose another.");
-      }
-
-      // ✅ Safe write, then redirect only after success
-      await set(ref(db, "users/" + newUser.uid), {
-        uid: newUser.uid,
-        email: newUser.email ?? email.trim(),
-        username: uname,
-        createdAt: Date.now(),
+      await set(ref(db, `users/${user.uid}`), {
+        username,
+        email: user.email,
+        avatar: "🧩",
+        createdAt: new Date().toISOString(),
       });
 
-      setSuccess(true);
-      setTimeout(() => navigate("/Dashboard"), 1000);
-    } catch (err) {
-      console.error("Signup error:", err);
-      let msg = err.message || "Unknown error occurred.";
-      if (msg.includes("PERMISSION_DENIED"))
-        msg = "Database permissions blocked or invalid session.";
-      if (msg.includes("auth/weak-password"))
-        msg = "Password too weak — use 8+ characters with a number & symbol.";
-      if (msg.includes("auth/email-already-in-use"))
-        msg = "That email is already registered.";
-      if (msg.includes("auth/invalid-email"))
-        msg = "Please enter a valid email address.";
-      setError(msg);
-    }
-  };
+      localStorage.setItem("username", username);
+      localStorage.setItem("avatar", "🧩");
 
-  // ✅ Handle Google username save
-  const handleUsernameSave = async (uid, email) => {
-    try {
-      const uname = username.trim();
-      const usernameQuery = query(
-        ref(db, "users"),
-        orderByChild("username"),
-        equalTo(uname)
-      );
-      const result = await get(usernameQuery);
-      if (result.exists()) throw new Error("Username is already taken.");
-
-      await set(ref(db, "users/" + uid), {
-        uid,
-        email,
-        username: uname,
-        updatedAt: Date.now(),
-      });
-      setSuccess(true);
-      setTimeout(() => navigate("/Dashboard"), 1000);
+      navigate("/dashboard");
     } catch (err) {
       setError(err.message);
     }
@@ -167,106 +49,83 @@ function Account() {
 
   const handleGoogle = async () => {
     try {
-      await signInWithGoogle();
+      const result = await signInWithGoogle();
+      const user = result.user;
+
+      navigate("/username");
     } catch (err) {
-      setError(err.message);
+      setError("Google sign-up failed.");
     }
   };
 
-  if (loading) return null;
-
-  const title = isGoogleUserWithoutUsername
-    ? "Complete Your Profile"
-    : "Create an Account";
-
   return (
-    <div className="text-center flex flex-col items-center min-h-screen justify-center">
-      <h2 className="text-xl mb-4">{title}</h2>
-
-      {success && (
-        <div className="bg-green-100 text-green-700 px-4 py-2 rounded-md mb-2">
-          Account created successfully! Redirecting...
-        </div>
-      )}
+    <div className="min-h-screen bg-gray-900 flex flex-col justify-center items-center text-white">
+      <h1 className="text-5xl font-extrabold mb-8 text-green-400">TileRush</h1>
 
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-3 w-64 text-left"
+        className="bg-gray-800 p-8 rounded-xl shadow-lg w-96 border border-gray-700"
       >
+        <h2 className="text-2xl font-semibold mb-6 text-center">Create Account</h2>
+
+        {error && <p className="text-red-400 mb-4 text-center">{error}</p>}
+
         <input
           type="text"
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-2"
-          required
+          className="w-full mb-4 px-3 py-2 rounded-md bg-gray-700 border border-gray-600"
         />
 
-        {!isGoogleUserWithoutUsername && !user && (
-          <>
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2"
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2"
-              required
-            />
-            <input
-              type="password"
-              placeholder="Confirm Password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-2"
-              required
-            />
-          </>
-        )}
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full mb-4 px-3 py-2 rounded-md bg-gray-700 border border-gray-600"
+        />
 
-        {error && <p className="text-red-500 text-sm">{error}</p>}
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full mb-6 px-3 py-2 rounded-md bg-gray-700 border border-gray-600"
+        />
 
         <button
           type="submit"
-          className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 rounded"
+          className="w-full bg-purple-500 hover:bg-purple-600 py-2 rounded-md font-semibold border-b-4 border-purple-700"
         >
-          {isGoogleUserWithoutUsername ? "Save Username" : "Create Account"}
+          Create Account
         </button>
 
-        {!user && (
+        <button
+          type="button"
+          onClick={handleGoogle}
+          className="w-full bg-red-500 hover:bg-red-600 py-2 rounded-md font-semibold border-b-4 border-red-700 mt-4"
+        >
+          Sign Up with Google
+        </button>
+
+        <p className="text-center text-gray-400 text-sm mt-6">
+          Already have an account?{" "}
           <button
-            type="button"
-            onClick={handleGoogle}
-            className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 rounded"
+            onClick={() => navigate("/login")}
+            className="text-blue-400 hover:underline"
           >
-            Sign up with Google
+            Log In
           </button>
-        )}
-
-        <button
-          type="button"
-          onClick={() => navigate("/Login")}
-          className="text-blue-500 underline mt-2"
-        >
-          Already have an account? Log in
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate("/Menu")}
-          className="text-purple-500 underline"
-        >
-          Back to Menu
-        </button>
+        </p>
       </form>
+
+      <button
+        onClick={() => navigate("/menu")}
+        className="text-gray-400 text-sm mt-6 hover:text-white"
+      >
+        ← Back to Menu
+      </button>
     </div>
   );
 }
-
-export default Account;

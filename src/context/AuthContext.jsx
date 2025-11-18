@@ -9,9 +9,9 @@ import {
   signInWithPopup,
   setPersistence,
   browserLocalPersistence,
+  GoogleAuthProvider,
 } from "firebase/auth";
-import { ref, get, set, child } from "firebase/database";
-import { auth, db, googleProvider } from "../firebase";
+import { auth } from "../firebase";
 
 const AuthContext = createContext();
 
@@ -21,38 +21,24 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [guest, setGuest] = useState(false);
   const [loading, setLoading] = useState(true);
+  const googleProvider = new GoogleAuthProvider();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       setUser(fbUser ?? null);
+      if (fbUser) setGuest(false); // ← ensure guest mode is off after sign-in
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  const signUp = async (email, password) =>
-    await createUserWithEmailAndPassword(auth, email, password);
+  const signUp = (email, password) =>
+    createUserWithEmailAndPassword(auth, email, password);
 
-  const signIn = async (email, password) =>
-    await signInWithEmailAndPassword(auth, email, password);
+  const signIn = (email, password) =>
+    signInWithEmailAndPassword(auth, email, password);
 
-  const signInWithGoogle = async () => {
-    const cred = await signInWithPopup(auth, googleProvider);
-    const user = cred.user;
-
-    // Create Realtime DB node only if missing
-    const userRef = child(ref(db), "users/" + user.uid);
-    const snap = await get(userRef);
-    if (!snap.exists()) {
-      await set(userRef, {
-        uid: user.uid,
-        email: user.email,
-        username: null,
-        createdAt: Date.now(),
-      });
-    }
-    return user;
-  };
+  const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
 
   const signOutUser = async () => {
     setGuest(false);
@@ -69,15 +55,19 @@ export function AuthProvider({ children }) {
       loading,
       signUp,
       signIn,
+      signInWithGoogle,
       signOutUser,
       resetPassword,
-      signInWithGoogle,
       startGuest,
     }),
     [user, guest, loading]
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
 }
 
 export const useAuth = () => useContext(AuthContext);
