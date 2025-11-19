@@ -1,120 +1,112 @@
+// src/Login.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
+import { ref, get, child } from "firebase/database";
+import { db } from "./firebase";
 
 function Login() {
-  const { signIn, signInWithGoogle, resetPassword } = useAuth();
-  const navigate = useNavigate();
-
+  const { signIn, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [resetSent, setResetSent] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError("");
     try {
-      await signIn(email.trim(), password);
-      navigate("/Dashboard");
+      await signIn(email, password);
+      navigate("/dashboard");
     } catch (err) {
-      let msg = err.message || "Error signing in.";
-      if (msg.includes("auth/invalid-credential"))
-        msg = "Invalid email or password.";
-      setError(msg);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError("Please enter your email to reset your password.");
-      return;
-    }
-    try {
-      await resetPassword(email.trim());
-      setResetSent(true);
-      setError("");
-    } catch (err) {
+      console.error("Login error:", err);
       setError(err.message);
     }
   };
 
-  const handleGoogle = async () => {
+  const handleGoogleLogin = async () => {
     try {
-      await signInWithGoogle();
-      navigate("/Dashboard");
+      const userCredential = await signInWithGoogle();
+      const user = userCredential.user;
+
+      // check if username exists
+      const snapshot = await get(child(ref(db), `users/${user.uid}`));
+
+      if (snapshot.exists() && snapshot.val()?.username) {
+        // returning user → go straight to dashboard
+        const data = snapshot.val();
+        localStorage.setItem("username", data.username);
+        localStorage.setItem("avatar", data.avatar || "🧩");
+        navigate("/dashboard");
+      } else {
+        // first-time Google sign-in → username setup
+        navigate("/username");
+      }
     } catch (err) {
-      setError(err.message);
+      console.error("Google login error:", err);
+      setError("Google Sign-in failed.");
     }
   };
 
   return (
-    <div className="text-center flex flex-col items-center min-h-screen justify-center">
-      <h2 className="text-xl mb-4">Sign In</h2>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col justify-center items-center text-white">
+      <h1 className="text-5xl font-extrabold mb-8 text-green-400">TileRush</h1>
 
-      <form onSubmit={handleLogin} className="flex flex-col gap-3 w-64 text-left">
+      <form
+        onSubmit={handleLogin}
+        className="bg-gray-800 p-8 rounded-xl shadow-lg w-96 border border-gray-700"
+      >
+        <h2 className="text-2xl font-semibold mb-6 text-center">Sign In</h2>
+
+        {error && <p className="text-red-400 mb-4 text-center">{error}</p>}
+
         <input
           type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-2"
-          required
+          className="w-full mb-4 px-3 py-2 rounded-md bg-gray-700 border border-gray-600 focus:border-green-500 outline-none"
         />
+
         <input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="border border-gray-300 rounded px-3 py-2"
-          required
+          className="w-full mb-6 px-3 py-2 rounded-md bg-gray-700 border border-gray-600 focus:border-green-500 outline-none"
         />
-
-        {error && <p className="text-red-500 text-sm">{error}</p>}
-        {resetSent && (
-          <p className="text-green-600 text-sm">
-            Password reset email sent! Check your inbox.
-          </p>
-        )}
 
         <button
           type="submit"
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 rounded"
+          className="w-full bg-green-500 hover:bg-green-600 px-4 py-2 rounded-md font-semibold border-b-4 border-green-700 transition-all"
         >
           Sign In
         </button>
 
         <button
           type="button"
-          onClick={handleGoogle}
-          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 rounded"
+          onClick={handleGoogleLogin}
+          className="w-full bg-red-500 hover:bg-red-600 px-4 py-2 rounded-md font-semibold border-b-4 border-red-700 transition-all mt-4"
         >
           Sign in with Google
         </button>
 
-        <button
-          type="button"
-          onClick={handleForgotPassword}
-          className="text-blue-600 underline text-sm mt-1"
-        >
-          Forgot Password?
-        </button>
-
-        <button
-          type="button"
-          onClick={() => navigate("/Account")}
-          className="text-green-600 underline mt-2"
-        >
-          Create an Account
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate("/Menu")}
-          className="text-purple-500 underline"
-        >
-          Back to Menu
-        </button>
+        <p className="text-center text-gray-400 text-sm mt-6">
+          Don’t have an account?{" "}
+          <button
+            onClick={() => navigate("/account")}
+            className="text-blue-400 hover:underline"
+          >
+            Create one
+          </button>
+        </p>
       </form>
+
+      <button
+        onClick={() => navigate("/menu")}
+        className="text-gray-400 text-sm mt-6 hover:text-white"
+      >
+        ← Back to Menu
+      </button>
     </div>
   );
 }

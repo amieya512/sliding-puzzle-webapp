@@ -3,26 +3,40 @@ import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Menu from "./Menu";
-import Puzzle from "./Puzzle";
-import Dashboard from "./Dashboard";
 import Login from "./Login";
 import Account from "./Account";
-import PrototypeMenu from "./prototype/PrototypeMenu";
+import Username from "./Username";  // <-- for Google username setup
+import Dashboard from "./Dashboard";
+import Puzzle from "./Puzzle";
+import CreatePuzzle from "./CreatePuzzle";     
+import CustomPuzzle from "./CustomPuzzle";     
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Main production routes */}
-        <Route path="/" element={<Menu />} />
-        <Route path="/Menu" element={<Menu />} />
-        <Route path="/Dashboard" element={<Dashboard />} />
-        <Route path="/Puzzle" element={<Puzzle />} />
-        <Route path="/Login" element={<Login />} />
-        <Route path="/Account" element={<Account />} />
 
-        {/* Prototype sandbox route */}
-        <Route path="/Prototype/*" element={<PrototypeMenu />} />
+        {/* Home / Menu */}
+        <Route path="/" element={<Menu />} />
+
+        {/* Authentication */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/account" element={<Account />} />
+
+        {/* Google signup → choose username */}
+        <Route path="/username" element={<Username />} />
+
+        {/* Main App Pages */}
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/puzzle" element={<Puzzle />} />
+
+        {/* CREATE + CUSTOM PUZZLE ROUTES (must come BEFORE fallback) */}
+        <Route path="/create" element={<CreatePuzzle />} />
+        <Route path="/custom-puzzle" element={<CustomPuzzle />} />
+
+        {/* Fallback */}
+        <Route path="*" element={<Menu />} />
+
       </Routes>
     </BrowserRouter>
   );
