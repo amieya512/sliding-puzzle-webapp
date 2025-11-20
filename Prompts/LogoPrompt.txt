@@ -1,0 +1,23 @@
+Generate an SVG logo that represents a sliding puzzle grid for a game called “TileRush”.
+
+Requirements:
+- 3×3 grid of rounded squares.
+- Each square should be 25×25.
+- Rounded corners: rx=4.
+- Overall SVG size: 140×140, viewBox="0 0 100 100".
+- Use three green color shades:
+  #22C55E
+  #16A34A
+  #15803D
+- The arrangement of colors must match this pattern, row by row:
+  Row 1: #22C55E, #16A34A, #15803D
+  Row 2: #15803D, #22C55E, #16A34A
+  Row 3: #16A34A, #15803D, #22C55E
+- Leave a small gap between the squares (same as your original spacing: x=5, 37.5, 70).
+- Output only clean, formatted SVG code with no surrounding explanation.
+
+After generating the base version, also generate 2 optional variations:
+1. A version with a slight 3D shadow under each tile.
+2. A version with tiles having a subtle gradient instead of flat colors.
+
+Do not change the overall layout or spacing.
