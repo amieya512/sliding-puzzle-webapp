@@ -6,7 +6,7 @@ export const bannedWords = [
   "fuck", "shit", "bitch", "asshole", "bastard", "dick", "cock",
   "pussy", "slut", "whore", "cunt", "twat", "fag", "faggot", "dyke",
   "nigger", "nigga", "kike", "spic", "chink", "gook", "retard",
-  "idiot", "moron", "jackass", "bollocks", "wanker", "cum", "semen",
+  "idiot", "moron", "damn", "bollocks", "wanker", "cum", "semen",
   "rape", "rapist", "pedo", "pedophile", "anal", "blowjob", "handjob",
   "tightpussy", "deepthroat","ass", "porn", "hardcore", "bdsm"
 ];
