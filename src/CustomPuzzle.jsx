@@ -77,6 +77,12 @@ export default function CustomPuzzle() {
 
   const baseTileSize = size === 3 ? 110 : size === 4 ? 95 : 80;
 
+  const fmt = (s) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(
+      2,
+      "0"
+    )}`;
+
   if (!imageSrc) return null;
 
   return (
@@ -144,7 +150,7 @@ export default function CustomPuzzle() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-[360px] text-center shadow-xl">
             <h2 className="text-2xl font-bold text-green-400">Nice work! 🎉</h2>
-            <p>Time: {seconds}</p>
+            <p>Time: {fmt(modal.time)}</p>
             <p>Moves: {moves}</p>
 
             <div className="flex justify-center gap-3 mt-5">
