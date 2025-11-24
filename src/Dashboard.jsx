@@ -193,6 +193,8 @@ function Dashboard() {
             <h3 className="text-xl font-semibold mb-3">Create a Puzzle</h3>
             <p className="text-gray-400 mb-6">
               Upload your own image and craft a new challenge for others.
+              
+              Customized puzzle records are not recorded.
             </p>
           </div>
 
