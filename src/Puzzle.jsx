@@ -24,6 +24,9 @@ import { useAuth } from "./context/AuthContext";
 import { fetchRandomImage } from "./utils/fetchRandomImage";
 import { splitImageIntoTiles } from "./utils/splitImage";
 
+// hint helper
+import { getHintMove } from "./utils/getHintMove";
+
 export default function Puzzle({ initialSize = 3 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -45,6 +48,11 @@ export default function Puzzle({ initialSize = 3 }) {
 
   // photo tiles
   const [tileImages, setTileImages] = useState(null);
+
+  // Hint system
+  const [hintIndex, setHintIndex] = useState(null);
+  const [hintCount, setHintCount] = useState(0);          // 3 max
+  const [previousHintIndex, setPreviousHintIndex] = useState(null);
 
   // ----------------------------------------------------
   // Load saved game or start a new puzzle
@@ -115,6 +123,9 @@ export default function Puzzle({ initialSize = 3 }) {
     setLayoutId(boardToLayoutId(startLayout));
     setMoves(0);
     setSeconds(0);
+    setHintIndex(null);
+    setHintCount(0);
+    setPreviousHintIndex(null);
     setRunning(true);
     setResetTrigger((x) => !x);
     setModal(null);
@@ -179,11 +190,30 @@ export default function Puzzle({ initialSize = 3 }) {
     [next[idx], next[blank]] = [next[blank], next[idx]];
     setTiles(next);
     setMoves((m) => m + 1);
+    setHintIndex(null);
 
     if (checkSolved(next)) {
       setRunning(false);
       handleSolve();
     }
+  }
+
+  // ----------------------------------------------------
+  // HINT BUTTON (3 max, avoid repeats)
+  // ----------------------------------------------------
+  function handleHint() {
+    if (hintCount >= 3) return;
+
+    const blank = tiles.indexOf(0);
+    const hintTile = getHintMove(tiles, size, previousHintIndex);
+
+    if (hintTile === null || hintTile === undefined) return;
+
+    setHintIndex(hintTile);
+    setPreviousHintIndex(hintTile);
+    setHintCount((h) => h + 1);
+
+    setTimeout(() => setHintIndex(null), 700);
   }
 
   // ----------------------------------------------------
@@ -280,16 +310,17 @@ export default function Puzzle({ initialSize = 3 }) {
               v === 0
                 ? "bg-transparent"
                 : "bg-gray-600 hover:bg-gray-500 text-white font-semibold rounded"
-            }`}
+            } ${hintIndex === i ? "outline outline-4 outline-yellow-300" : ""}`}
           />
         ))}
       </div>
 
-      <div className="mt-4 text-sm text-gray-300 flex flex-col items-center">
+      <div className="mt-4 text-sm text-gray-300 flex flex-col items-center text-center">
         <p>Moves: {moves}</p>
         <p>
           Grid: {size}×{size}
         </p>
+        <p className="mt-1 text-purple-300">Hints used: {hintCount}/3</p>
       </div>
 
       <div className="flex gap-6 mt-8">
@@ -298,6 +329,9 @@ export default function Puzzle({ initialSize = 3 }) {
             setTiles(initialBoard);
             setMoves(0);
             setSeconds(0);
+            setHintIndex(null);
+            setHintCount(0);
+            setPreviousHintIndex(null);
             setRunning(true);
             setResetTrigger((x) => !x);
             setModal(null);
@@ -305,6 +339,18 @@ export default function Puzzle({ initialSize = 3 }) {
           className="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded-lg font-semibold border-b-4 border-blue-700 active:translate-y-0.5"
         >
           Reset
+        </button>
+
+        <button
+          onClick={handleHint}
+          disabled={hintCount >= 3}
+          className={`px-6 py-2 rounded-lg font-semibold border-b-4 transition-all ${
+            hintCount >= 3
+              ? "bg-gray-600 border-gray-700 cursor-not-allowed"
+              : "bg-purple-500 hover:bg-purple-600 border-purple-700"
+          }`}
+        >
+          Hint ({hintCount}/3)
         </button>
 
         <button

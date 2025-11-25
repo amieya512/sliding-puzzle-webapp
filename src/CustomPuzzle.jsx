@@ -5,6 +5,7 @@ import Timer from "./components/Timer";
 import Tile from "./components/Tile";
 import { isSolved as checkSolved, newSolvableBoard } from "./utils/shuffle";
 import { splitImageIntoTiles } from "./utils/splitImage";
+import { getHintMove } from "./utils/getHintMove";
 
 export default function CustomPuzzle() {
   const navigate = useNavigate();
@@ -24,6 +25,11 @@ export default function CustomPuzzle() {
   const [running, setRunning] = useState(true);
   const [modal, setModal] = useState(null);
 
+  // Hint system
+  const [hintIndex, setHintIndex] = useState(null);
+  const [hintCount, setHintCount] = useState(0);        // limit = 3
+  const [previousHintIndex, setPreviousHintIndex] = useState(null);
+
   useEffect(() => {
     if (!imageSrc) {
       navigate("/create");
@@ -37,10 +43,7 @@ export default function CustomPuzzle() {
     async function loadImage() {
       try {
         const pieces = await splitImageIntoTiles(imageSrc, size);
-
-        // 🔥 Tile.jsx expects an ARRAY, so pass the array directly.
-        setTileImages(pieces);
-
+        setTileImages(pieces); // array
       } catch (err) {
         console.error("Error slicing custom image:", err);
       }
@@ -68,11 +71,28 @@ export default function CustomPuzzle() {
 
     setTiles(next);
     setMoves((m) => m + 1);
+    setHintIndex(null); // clear highlight after move
 
     if (checkSolved(next)) {
       setRunning(false);
       setModal({ type: "solved", time: seconds, moves });
     }
+  }
+
+  // HINT: 3 max, avoid repeating same tile
+  function handleHint() {
+    if (hintCount >= 3) return;
+
+    const blank = tiles.indexOf(0);
+    const hintTile = getHintMove(tiles, size, previousHintIndex);
+
+    if (hintTile === null || hintTile === undefined) return;
+
+    setHintIndex(hintTile);
+    setPreviousHintIndex(hintTile);
+    setHintCount((h) => h + 1);
+
+    setTimeout(() => setHintIndex(null), 700);
   }
 
   const baseTileSize = size === 3 ? 110 : size === 4 ? 95 : 80;
@@ -91,8 +111,14 @@ export default function CustomPuzzle() {
       <h1 className="text-4xl font-extrabold text-green-400 mb-1">TileRush</h1>
       <p className="text-gray-300 text-sm mb-4">Custom {size}×{size} Puzzle</p>
 
-      <Timer autoStart running={running} resetTrigger={resetTrigger} onTick={setSeconds} />
+      <Timer
+        autoStart
+        running={running}
+        resetTrigger={resetTrigger}
+        onTick={setSeconds}
+      />
 
+      {/* GRID */}
       <div
         className="grid gap-1 mt-2 border border-gray-700 bg-gray-800 p-4 rounded-lg shadow-lg"
         style={{
@@ -105,18 +131,27 @@ export default function CustomPuzzle() {
             value={v}
             index={i}
             onClick={moveTile}
-            imageTiles={tileImages}  // ARRAY FORMAT
-            className={`${v === 0 ? "bg-transparent" : "bg-gray-600 hover:bg-gray-500 text-white font-semibold rounded"}`}
+            imageTiles={tileImages}
+            className={`${
+              v === 0
+                ? "bg-transparent"
+                : "bg-gray-600 hover:bg-gray-500 text-white font-semibold rounded"
+            } ${hintIndex === i ? "outline outline-4 outline-yellow-300" : ""}`}
           />
         ))}
       </div>
 
+      {/* STATS */}
       <div className="mt-4 text-sm text-gray-300 text-center">
         <p>Moves: {moves}</p>
         <p>Grid: {size}×{size}</p>
+        <p className="mt-1 text-purple-300">Hints used: {hintCount}/3</p>
       </div>
 
+      {/* BUTTONS */}
       <div className="flex gap-6 mt-8">
+
+        {/* Reset */}
         <button
           onClick={() => {
             setTiles(initialBoard);
@@ -124,6 +159,9 @@ export default function CustomPuzzle() {
             setSeconds(0);
             setRunning(true);
             setResetTrigger((x) => !x);
+            setHintIndex(null);
+            setHintCount(0);
+            setPreviousHintIndex(null);
             setModal(null);
           }}
           className="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded-lg font-semibold border-b-4 border-blue-700"
@@ -131,13 +169,20 @@ export default function CustomPuzzle() {
           Reset
         </button>
 
+        {/* Hint (replaces Give Up) */}
         <button
-          onClick={() => navigate("/create")}
-          className="bg-red-500 hover:bg-red-600 px-6 py-2 rounded-lg font-semibold border-b-4 border-red-700"
+          onClick={handleHint}
+          disabled={hintCount >= 3}
+          className={`px-6 py-2 rounded-lg font-semibold border-b-4 transition-all ${
+            hintCount >= 3
+              ? "bg-gray-600 border-gray-700 cursor-not-allowed"
+              : "bg-purple-500 hover:bg-purple-600 border-purple-700"
+          }`}
         >
-          Give Up
+          Hint ({hintCount}/3)
         </button>
 
+        {/* Exit */}
         <button
           onClick={() => navigate("/dashboard")}
           className="bg-green-500 hover:bg-green-600 px-6 py-2 rounded-lg font-semibold border-b-4 border-green-700"
@@ -146,12 +191,14 @@ export default function CustomPuzzle() {
         </button>
       </div>
 
+      {/* WIN MODAL */}
       {modal && modal.type === "solved" && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-[360px] text-center shadow-xl">
-            <h2 className="text-2xl font-bold text-green-400">Nice work! 🎉</h2>
+
+            <h2 className="text-2xl font-bold mb-3 text-green-400">Nice work! 🎉</h2>
             <p>Time: {fmt(modal.time)}</p>
-            <p>Moves: {moves}</p>
+            <p>Moves: {modal.moves}</p>
 
             <div className="flex justify-center gap-3 mt-5">
               <button
@@ -167,6 +214,7 @@ export default function CustomPuzzle() {
                 Exit
               </button>
             </div>
+
           </div>
         </div>
       )}

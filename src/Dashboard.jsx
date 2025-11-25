@@ -10,6 +10,7 @@ import {
 } from "./utils/gameState";
 
 import SettingsModal from "./components/SettingsModal";
+import RaceBotModal from "./components/RaceBotModal";   // ← NEW IMPORT
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ function Dashboard() {
   const [avatar, setAvatar] = useState("🧩");
 
   const [showSettings, setShowSettings] = useState(false);
+  const [showRaceModal, setShowRaceModal] = useState(false); // ← NEW STATE
 
   // Load saved UI username/avatar + game state
   useEffect(() => {
@@ -193,14 +195,13 @@ function Dashboard() {
             <h3 className="text-xl font-semibold mb-3">Create a Puzzle</h3>
             <p className="text-gray-400 mb-6">
               Upload your own image and craft a new challenge for others.
-              
               Customized puzzle records are not recorded.
             </p>
           </div>
 
           <div className="flex justify-end">
             <button
-              onClick={() => navigate("/create")}  // ✅ NEW: go to create screen
+              onClick={() => navigate("/create")}
               className="bg-blue-500 hover:bg-blue-600 px-6 py-3 rounded-lg font-semibold border-b-4 border-blue-700 active:translate-y-0.5 transition-all"
             >
               Create
@@ -219,10 +220,10 @@ function Dashboard() {
 
           <div className="flex justify-end">
             <button
-              onClick={() => alert("Coming soon")}
+              onClick={() => setShowRaceModal(true)}
               className="bg-yellow-500 hover:bg-yellow-600 px-6 py-3 rounded-lg font-semibold border-b-4 border-yellow-700 active:translate-y-0.5 transition-all"
             >
-              Coming Soon
+              Race
             </button>
           </div>
         </div>
@@ -243,6 +244,11 @@ function Dashboard() {
           onUpdate={handleUpdateUser}
           onClose={() => setShowSettings(false)}
         />
+      )}
+
+      {/* Race Bot Modal */}
+      {showRaceModal && (
+        <RaceBotModal onClose={() => setShowRaceModal(false)} />
       )}
     </div>
   );

@@ -10,6 +10,7 @@ import Dashboard from "./Dashboard";
 import Puzzle from "./Puzzle";
 import CreatePuzzle from "./CreatePuzzle";     
 import CustomPuzzle from "./CustomPuzzle";     
+import Race from "./Race";
 
 export default function App() {
   return (
@@ -36,6 +37,9 @@ export default function App() {
 
         {/* Fallback */}
         <Route path="*" element={<Menu />} />
+        
+        {/*Racing Feature*/}
+        <Route path="/race" element={<Race />} />
 
       </Routes>
     </BrowserRouter>

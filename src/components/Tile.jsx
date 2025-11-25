@@ -7,6 +7,7 @@ export default function Tile({
   onClick,
   className = "",
   imageTiles = null,
+  isHint = false,
 }) {
   const isBlank = value === 0;
   const hasImage = !isBlank && imageTiles && imageTiles[value];
@@ -24,11 +25,11 @@ export default function Tile({
       onClick={() => onClick(index)}
       className={`relative flex items-center justify-center text-xl ${
         isBlank ? "" : "font-bold"
-      } ${className}`}
+      } ${className} ${isHint ? "ring-4 ring-yellow-400" : ""}`}
       style={{
         ...backgroundStyle,
         width: "100%",
-        aspectRatio: "1 / 1",  // 💯 PERFECT SQUARE TILE FIX
+        aspectRatio: "1 / 1",
       }}
     >
       {hasImage && (
