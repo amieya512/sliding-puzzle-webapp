@@ -1,0 +1,16 @@
+Write a Vitest + React Testing Library test file for src/context/AuthContext.jsx.
+
+Requirements:
+- Mock the entire firebase/auth module using inline mocks inside vi.mock() to avoid hoisting errors.
+- Mock: createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail, signOut, onAuthStateChanged, setPersistence, GoogleAuthProvider.
+- Mock ../firebase to return { auth: { currentUser: null } }.
+- Create a small TestComponent that uses: signUp, signIn, signOutUser, startGuest, and guest.
+- Add four test cases:
+  1. signUp() calls createUserWithEmailAndPassword with correct args.
+  2. signIn() calls signInWithEmailAndPassword with correct args.
+  3. signOutUser() calls signOut().
+  4. startGuest() sets guest = true and updates UI.
+
+- Use waitFor() where needed.
+- Ensure no variables outside the vi.mock factory are referenced inside mocks.
+- Return a complete working Vitest test file.

@@ -1,0 +1,22 @@
+Generate a new Vitest test file for utils/shuffle.js.
+
+Goal:
+Test newSolvableBoard(size) across multiple sizes (3, 4, 5) to ensure that:
+1. The board contains size*size tiles.
+2. The board contains all numbers from 0 to size*size - 1 with no duplicates.
+3. The board is solvable using correct inversion rules for N-puzzles.
+4. The board differs on each generation (i.e., not returning identical boards every time).
+
+Test requirements:
+- Loop through sizes [3, 4, 5].
+- For each size, generate 10 boards and validate all rules.
+- Implement a small local "isSolvable" helper inside the test
+  (count inversions, apply blank-row parity rules for odd/even sizes).
+- Do NOT import your internal solver unless it's already exported for testing.
+
+File output:
+src/test/newSolvableBoard.test.js
+
+Use clean Vitest structure with describe/it.
+
+Generate the full test file now.

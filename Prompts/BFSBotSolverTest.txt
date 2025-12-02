@@ -1,0 +1,35 @@
+Generate a Vitest test file for the bot solver logic used in Race mode.
+
+File to create:
+src/test/botSolver.test.js
+
+Goal:
+Test that computeBotMoves (the BFS solver) always returns the shortest possible path to the goal state.
+
+Requirements:
+1. Import computeBotMoves from its module.
+2. Define the solved goal board for a 3×3 puzzle:
+   const goal = [1,2,3,4,5,6,7,8,0];
+
+3. Define several known test boards with known optimal solution lengths:
+   - One move away:
+     [1,2,3,4,5,6,7,0,8]
+     (optimal: 1)
+   - Two moves away:
+     [1,2,3,4,5,6,0,7,8]
+     (optimal: 2)
+   - Three moves away:
+     [1,2,3,4,0,6,7,5,8]
+     (optimal: 3)
+
+4. For each board:
+   - Call computeBotMoves(startBoard)
+   - Expect:
+       result is an array
+       result.length === expectedOptimalLength
+   - Optionally, apply the returned moves to reach the goal and verify it equals `goal`.
+
+5. Use describe/it structure from Vitest.
+6. Keep the test pure BFS (no difficulty modifiers).
+
+Produce the complete test file now.

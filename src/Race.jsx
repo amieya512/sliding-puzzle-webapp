@@ -7,6 +7,8 @@ import {
   newSolvableBoard,
   isSolved as checkSolved,
 } from "./utils/shuffle";
+import { computeBotMoves } from "./utils/botSolver";
+import { DIALOGUE } from "./bots/dialogue";
 
 export default function Race() {
   const navigate = useNavigate();
@@ -20,7 +22,8 @@ export default function Race() {
     size: initialSize = 3,
   } = location.state || {};
 
-  const size = initialSize || 3; // We’ll keep race at 3×3 for now
+  const size = initialSize || 3; // keep race at 3×3 for now
+  const difficulty = (rawDifficulty || "Easy").toLowerCase();
 
   const [playerTiles, setPlayerTiles] = useState([]);
   const [botTiles, setBotTiles] = useState([]);
@@ -42,7 +45,11 @@ export default function Race() {
   const botTimerRef = useRef(null);
   const raceOverRef = useRef(false);
 
-  const difficulty = (rawDifficulty || "Easy").toLowerCase();
+  // For chat bubbles
+  const [botMessage, setBotMessage] = useState(null);
+  const [showBubble, setShowBubble] = useState(false);
+  const bubbleTimeoutRef = useRef(null);
+  const lastSpeechRef = useRef(0);
 
   // --- Helpers for neighbor checks (same logic as Puzzle) ---
   function indexToRC(index) {
@@ -55,88 +62,104 @@ export default function Race() {
     return Math.abs(a.r - b.r) + Math.abs(a.c - b.c) === 1;
   }
 
-  // --- BFS solver for 3×3 (8-puzzle) to get optimal solution path ---
-  function computeBotMoves(startTiles) {
-    if (size !== 3) {
-      // Only support 3×3 for now
-      return [];
-    }
 
-    const goal = [1, 2, 3, 4, 5, 6, 7, 8, 0];
-    const goalKey = goal.join(",");
+  // --- Dialogue helpers ---
+  function getDialoguePool() {
+    const entry = DIALOGUE?.[botName];
+    if (!entry) return [];
 
-    const startKey = startTiles.join(",");
-    if (startKey === goalKey) return [];
+    // Support both:
+    //  - DIALOGUE[botName] = [ "line1", "line2" ]
+    //  - DIALOGUE[botName] = { easy: [...], medium: [...], default: [...] }
+    if (Array.isArray(entry)) return entry;
 
-    const queue = [startTiles];
-    const visited = new Set([startKey]);
-    const parents = new Map(); // key -> { parentKey, board }
+    const pool =
+      entry[difficulty] ||
+      entry[rawDifficulty] ||
+      entry.default ||
+      [];
+    return Array.isArray(pool) ? pool : [];
+  }
 
-    const directions = [
-      { dr: -1, dc: 0 }, // up
-      { dr: 1, dc: 0 },  // down
-      { dr: 0, dc: -1 }, // left
-      { dr: 0, dc: 1 },  // right
-    ];
+  function speakRandomLine() {
+    const pool = getDialoguePool();
+    if (!pool.length) return;
 
-    function getNeighborsBoards(board) {
-      const neighbors = [];
-      const blankIdx = board.indexOf(0);
-      const { r, c } = indexToRC(blankIdx);
+    const now = Date.now();
+    // avoid spammy speech
+    if (now - lastSpeechRef.current < 3500) return;
 
-      for (const { dr, dc } of directions) {
-        const nr = r + dr;
-        const nc = c + dc;
-        if (nr < 0 || nr >= size || nc < 0 || nc >= size) continue;
-        const neighborIdx = nr * size + nc;
+    lastSpeechRef.current = now;
+    const line = pool[Math.floor(Math.random() * pool.length)];
 
-        const next = [...board];
-        [next[blankIdx], next[neighborIdx]] = [next[neighborIdx], next[blankIdx]];
-        neighbors.push(next);
-      }
+    setBotMessage(line);
+    setShowBubble(true);
 
-      return neighbors;
-    }
+    if (bubbleTimeoutRef.current) clearTimeout(bubbleTimeoutRef.current);
+    bubbleTimeoutRef.current = setTimeout(() => {
+      setShowBubble(false);
+    }, 4000);
+  }
 
-    while (queue.length > 0) {
-      const current = queue.shift();
-      const currentKey = current.join(",");
+  // --- Difficulty distortion: adds mistakes / detours ---
+  function applyDifficultyDistortion(sequence, mode) {
+    const seq = [...sequence];
 
-      if (currentKey === goalKey) {
-        // Reconstruct path from start -> goal
-        const pathBoards = [];
-        let k = currentKey;
-        while (k !== startKey) {
-          const parentInfo = parents.get(k);
-          if (!parentInfo) break;
-          pathBoards.push(parentInfo.board);
-          k = parentInfo.parentKey;
+    if (mode === "easy") {
+      // Lots of extra dumbness: repeats & random side moves
+      for (let i = 1; i < seq.length - 1; i++) {
+        if (Math.random() < 0.25 && i > 0) {
+          // Repeat previous move (like undoing progress)
+          seq.splice(i, 0, seq[i - 1]);
+          i++;
         }
-        pathBoards.reverse();
-
-        // Convert board path into "tile index to click" sequence
-        const moves = [];
-        let cur = startTiles;
-        for (const nextBoard of pathBoards) {
-          const blankNextIdx = nextBoard.indexOf(0);
-          // The tile to click in current board is where the blank will move to
-          moves.push(blankNextIdx);
-          cur = nextBoard;
+        if (Math.random() < 0.2) {
+          // Insert some random step from another part of the path
+          const r = Math.floor(Math.random() * seq.length);
+          seq.splice(i, 0, seq[r]);
+          i++;
         }
-        return moves;
-      }
-
-      for (const neighbor of getNeighborsBoards(current)) {
-        const key = neighbor.join(",");
-        if (visited.has(key)) continue;
-        visited.add(key);
-        parents.set(key, { parentKey: currentKey, board: neighbor });
-        queue.push(neighbor);
       }
     }
 
-    // Fallback: no solution found (shouldn’t happen for a solvable board)
-    return [];
+    if (mode === "medium") {
+      // Occasionally backtrack a bit
+      for (let i = 1; i < seq.length - 2; i++) {
+        if (Math.random() < 0.1 && i > 0) {
+          seq.splice(i, 0, seq[i - 1]);
+          i++;
+        }
+      }
+    }
+
+    if (mode === "adaptive") {
+      // Mostly smart, small imperfections
+      for (let i = 1; i < seq.length - 1; i++) {
+        if (Math.random() < 0.05 && i > 0) {
+          seq.splice(i, 0, seq[i - 1]);
+          i++;
+        }
+      }
+    }
+
+    // Hard = pure optimal (no distortion)
+    return seq;
+  }
+
+  // --- Difficulty-based delay ---
+  function getDelayMs(mode) {
+    switch (mode) {
+      case "easy":
+        return 1200 + Math.floor(Math.random() * 600); // very slow + jittery
+      case "medium":
+        return 750 + Math.floor(Math.random() * 300); // moderate
+      case "hard":
+        return 330 + Math.floor(Math.random() * 120); // fast
+      case "adaptive":
+        return 600 + Math.floor(Math.random() * 250); // in-between for now
+      default:
+        return 700;
+    }
   }
 
   // --- Initialize race: same board for player & bot ---
@@ -152,8 +175,10 @@ export default function Race() {
     setPlayerTiles(board);
     setBotTiles(board);
 
-    // Pre-compute bot move sequence from BFS
-    const moves = computeBotMoves(board);
+    // Pre-compute bot move sequence (optimal path)
+    let moves = computeBotMoves(board, size);
+    // Distort moves according to difficulty
+    moves = applyDifficultyDistortion(moves, difficulty);
     setBotMoveSequence(moves);
 
     // Reset race state
@@ -166,68 +191,100 @@ export default function Race() {
     setWinner(null);
     raceOverRef.current = false;
     setRaceOver(false);
-  }, [size, navigate, location.state]);
 
-  // --- Bot auto-move effect ---
+    // Reset dialogue
+    setBotMessage(null);
+    setShowBubble(false);
+    lastSpeechRef.current = 0;
+    if (bubbleTimeoutRef.current) clearTimeout(bubbleTimeoutRef.current);
+
+    // Small delay then bot "speaks"
+    const startSpeech = setTimeout(() => {
+      speakRandomLine();
+    }, 600);
+
+    return () => {
+      clearTimeout(startSpeech);
+      if (bubbleTimeoutRef.current) clearTimeout(bubbleTimeoutRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [size, navigate, location.state, difficulty]); // recalc when difficulty or race target changes
+
+  // --- Bot auto-move effect (single sequence, no restarts) ---
   useEffect(() => {
     if (!botMoveSequence.length) return;
     if (raceOverRef.current) return;
-
-    const speedMap = {
-      easy: 900,
-      medium: 600,
-      hard: 350,
-      adaptive: 600,
-    };
-    const delay = speedMap[difficulty] || 700;
 
     let i = 0;
     let cancelled = false;
 
     function step() {
       if (cancelled || raceOverRef.current) return;
+
+      // Done with planned path
       if (i >= botMoveSequence.length) {
-        // Bot completed its planned path
-        if (!raceOverRef.current && checkSolved(botTiles)) {
-          raceOverRef.current = true;
-          setRaceOver(true);
-          setWinner((w) => w || "bot");
-          setBotRunning(false);
-          setPlayerRunning(false);
-        }
+        // If bot somehow reaches solved state here
+        setBotTiles((prev) => {
+          if (checkSolved(prev) && !raceOverRef.current) {
+            raceOverRef.current = true;
+            setRaceOver(true);
+            setWinner((w) => w || "bot");
+            setBotRunning(false);
+            setPlayerRunning(false);
+          }
+          return prev;
+        });
         return;
       }
 
-      const moveIdx = botMoveSequence[i];
+      const delay = getDelayMs(difficulty);
 
-      setBotTiles((prev) => {
-        const blankIdx = prev.indexOf(0);
-        if (!areNeighbors(moveIdx, blankIdx)) return prev;
+      botTimerRef.current = setTimeout(() => {
+        if (cancelled || raceOverRef.current) return;
 
-        const next = [...prev];
-        [next[moveIdx], next[blankIdx]] = [next[blankIdx], next[moveIdx]];
+        const moveIdx = botMoveSequence[i];
 
-        // If bot solves here and player hasn't, bot wins
-        if (checkSolved(next) && !raceOverRef.current) {
-          raceOverRef.current = true;
-          setRaceOver(true);
-          setWinner("bot");
-          setBotRunning(false);
-          setPlayerRunning(false);
+        setBotTiles((prev) => {
+          const blankIdx = prev.indexOf(0);
+          if (!areNeighbors(moveIdx, blankIdx)) {
+            // If somehow not neighbors (due to distortion), just keep board
+            return prev;
+          }
+
+          const next = [...prev];
+          [next[blankIdx], next[moveIdx]] = [next[moveIdx], next[blankIdx]];
+
+          // Bot may solve here
+          if (checkSolved(next) && !raceOverRef.current) {
+            raceOverRef.current = true;
+            setRaceOver(true);
+            setWinner("bot");
+            setBotRunning(false);
+            setPlayerRunning(false);
+
+            // final "I won" style line
+            speakRandomLine();
+          } else if (
+            i === 1 ||
+            i === Math.floor(botMoveSequence.length / 2)
+          ) {
+            // Occasional chatter mid-game
+            speakRandomLine();
+          }
+
+          return next;
+        });
+
+        setBotMovesCount((c) => c + 1);
+        i += 1;
+
+        if (!raceOverRef.current && i < botMoveSequence.length) {
+          step();
         }
-
-        return next;
-      });
-
-      setBotMovesCount((c) => c + 1);
-      i += 1;
-
-      if (!raceOverRef.current && i < botMoveSequence.length) {
-        botTimerRef.current = setTimeout(step, delay);
-      }
+      }, delay);
     }
 
-    botTimerRef.current = setTimeout(step, delay);
+    step();
 
     return () => {
       cancelled = true;
@@ -235,7 +292,8 @@ export default function Race() {
         clearTimeout(botTimerRef.current);
       }
     };
-  }, [botMoveSequence, difficulty, botTiles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botMoveSequence, difficulty]); // DO NOT depend on botTiles to avoid restarts
 
   // --- Player move handler ---
   function handlePlayerMove(idx) {
@@ -256,6 +314,9 @@ export default function Race() {
       setWinner("player");
       setPlayerRunning(false);
       setBotRunning(false);
+
+      // Player wins → bot reacts once
+      speakRandomLine();
     }
   }
 
@@ -269,7 +330,12 @@ export default function Race() {
   };
 
   if (!playerTiles.length || !botTiles.length) {
-    return null;
+    // show something instead of pure blank white
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white flex items-center justify-center">
+        <p className="text-gray-300 text-sm">Loading race...</p>
+      </div>
+    );
   }
 
   return (
@@ -278,8 +344,8 @@ export default function Race() {
         Race a Bot
       </h1>
 
-      {/* Bot header */}
-      <div className="flex items-center gap-4 mb-6">
+      {/* Bot header + chat bubble (to the RIGHT of avatar) */}
+      <div className="flex items-center gap-4 mb-6 relative">
         {botAvatar && (
           <img
             src={botAvatar}
@@ -293,6 +359,14 @@ export default function Race() {
             Difficulty: {difficulty}
           </p>
         </div>
+
+        {showBubble && botMessage && (
+          <div className="absolute left-full ml-4 top-0 max-w-xs">
+            <div className="bg-white text-gray-900 text-sm px-3 py-2 rounded-2xl shadow-lg border border-gray-200">
+              {botMessage}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Boards row */}
@@ -355,7 +429,6 @@ export default function Race() {
                 key={i}
                 value={v}
                 index={i}
-                // Bot tiles not clickable
                 onClick={() => {}}
                 className={`${
                   v === 0
@@ -381,7 +454,7 @@ export default function Race() {
         </button>
         <button
           onClick={() => {
-            // simple rematch: re-run same effect by navigating back to race with same state
+            // rematch with same settings
             navigate("/race", {
               state: {
                 botName,
